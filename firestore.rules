@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ════════════════════════════════════════════════════════
+    //  ▼▼▼ 리그전 웹앱 (league) — 여기부터 ▼▼▼
+    //  ※ 이미 다른 웹앱(체육대회 현황판 등)의 규칙이 있다면,
+    //    기존 내용은 그대로 두고 이 블록만 같은 위치(documents 안쪽)에 추가하세요.
+    // ════════════════════════════════════════════════════════
+    function lgSignedIn() { return request.auth != null; }
+    function lgIsAdmin() {
+      return lgSignedIn()
+        && exists(/databases/$(database)/documents/league_config/admin)
+        && get(/databases/$(database)/documents/league_config/admin).data.uid == request.auth.uid;
+    }
+    function lgIsTeacher(tid) {
+      return lgSignedIn()
+        && exists(/databases/$(database)/documents/league_teachers/$(tid))
+        && get(/databases/$(database)/documents/league_teachers/$(tid)).data.uid == request.auth.uid;
+    }
+
+    // 관리자 지정 (처음 한 번만 만들 수 있고, 이후 변경 불가)
+    match /league_config/admin {
+      allow read: if true;
+      allow create: if lgSignedIn()
+        && request.auth.token.email == "admin.master@league.pe-apps.app"
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // 선생님 목록: 누구나 보기(선생님 선택 화면), 관리자만 추가/삭제
+    match /league_teachers/{tid} {
+      allow read: if true;
+      allow write: if lgIsAdmin();
+    }
+
+    // 수업(리그): 누구나 보기(학생 순위), 담당 선생님·관리자만 수정
+    match /league_leagues/{lid} {
+      allow read: if true;
+      allow create: if lgIsAdmin() || lgIsTeacher(request.resource.data.teacherId);
+      allow update: if lgIsAdmin()
+        || (lgIsTeacher(resource.data.teacherId)
+            && request.resource.data.teacherId == resource.data.teacherId);
+      allow delete: if lgIsAdmin();
+
+      match /matches/{mid} {
+        allow read: if true;
+        allow write: if lgIsAdmin()
+          || lgIsTeacher(get(/databases/$(database)/documents/league_leagues/$(lid)).data.teacherId);
+      }
+    }
+    // ════════════════════════════════════════════════════════
+    //  ▲▲▲ 리그전 웹앱 (league) — 여기까지 ▲▲▲
+    // ════════════════════════════════════════════════════════
+
+  }
+}
