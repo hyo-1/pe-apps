@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>얼티미트 규칙 퀴즈</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --main:#0E5E6F; --main-dark:#0A4652; --main-soft:#EEF8F5; --line:#CBE2DC;
+    --accent:#E8590C; --accent-soft:#FFF4E8; --ink:#15202B; --sub:#4A5A64;
+    --ok:#15803D; --ok-soft:#E8F6EC; --bad:#B42318; --bad-soft:#FDECEA;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Noto Sans KR',sans-serif;color:var(--ink);background:#F4F8F7;min-height:100vh}
+  button,input,select{font-family:inherit;font-size:16px}
+  .hidden{display:none !important}
+  header.top{background:var(--main);color:#fff;padding:18px 20px}
+  header.top .eyebrow{font-size:12px;font-weight:700;letter-spacing:3px;color:#A9E0D4}
+  header.top h1{margin:2px 0 0;font-family:'Black Han Sans',sans-serif;font-weight:400;font-size:32px}
+  main{max-width:640px;margin:0 auto;padding:20px 16px 40px}
+  main.wide{max-width:1100px}
+  .card{background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:22px}
+  .stack{display:flex;flex-direction:column;gap:14px}
+  label{font-weight:700;font-size:14px;display:block;margin-bottom:6px}
+  input[type=text],input[type=password],select{width:100%;padding:13px 14px;border:1.5px solid #B9CFCA;border-radius:10px;background:#fff}
+  input:focus,select:focus{outline:3px solid #A9E0D4;border-color:var(--main)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 20px;border-radius:10px;border:0;font-weight:700;cursor:pointer;background:var(--main);color:#fff}
+  .btn:hover{background:var(--main-dark)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn.ghost{background:#fff;color:var(--main);border:1.5px solid var(--main)}
+  .btn.ghost:hover{background:var(--main-soft)}
+  .btn.accent{background:var(--accent)}
+  .btn.small{min-height:36px;padding:0 12px;font-size:14px}
+  .btn.danger{background:#fff;color:var(--bad);border:1.5px solid #E7B4AE}
+  .btn.danger:hover{background:var(--bad-soft)}
+  .err{color:var(--bad);font-size:14px;font-weight:500;min-height:20px}
+  .note{font-size:14px;color:var(--sub);line-height:1.6}
+  .notice{background:var(--accent-soft);border:1.5px solid var(--accent);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.6}
+  .linkbtn{background:none;border:0;color:var(--sub);text-decoration:underline;cursor:pointer;font-size:14px;padding:8px}
+  /* quiz */
+  .progress{height:8px;background:#DCEBE7;border-radius:4px;overflow:hidden}
+  .progress>div{height:100%;background:var(--main);transition:width .2s}
+  .qmeta{display:flex;justify-content:space-between;font-size:14px;color:var(--sub);font-weight:500}
+  .qtext{font-size:20px;font-weight:700;line-height:1.5;margin:4px 0 6px}
+  .opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px 16px;border:1.5px solid #B9CFCA;border-radius:12px;background:#fff;cursor:pointer;font-size:16px;line-height:1.45;color:var(--ink)}
+  .opt:hover{border-color:var(--main)}
+  .opt .mark{flex-shrink:0;width:28px;height:28px;border-radius:14px;border:1.5px solid #B9CFCA;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--sub)}
+  .opt.sel{border-color:var(--main);background:var(--main-soft);box-shadow:0 0 0 1.5px var(--main) inset}
+  .opt.sel .mark{background:var(--main);border-color:var(--main);color:#fff}
+  .nav{display:flex;justify-content:space-between;gap:10px}
+  .dots{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+  .dot{width:34px;height:34px;border-radius:17px;border:1.5px solid #B9CFCA;background:#fff;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer}
+  .dot.done{background:var(--main-soft);border-color:var(--main);color:var(--main)}
+  .dot.cur{background:var(--main);border-color:var(--main);color:#fff}
+  /* result */
+  .score{font-family:'Black Han Sans',sans-serif;font-size:72px;line-height:1;color:var(--main)}
+  .badge{display:inline-block;padding:6px 16px;border-radius:999px;font-weight:900;font-size:18px}
+  .badge.ok{background:var(--ok-soft);color:var(--ok)}
+  .badge.bad{background:var(--bad-soft);color:var(--bad)}
+  /* teacher */
+  .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .stat{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+  .stat .k{font-size:13px;color:var(--sub);font-weight:500}
+  .stat .v{font-size:26px;font-weight:900}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .toolbar select{width:auto;min-width:160px}
+  .tablebox{overflow-x:auto;background:#fff;border:1.5px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th,td{padding:10px 12px;border-bottom:1px solid #E2EEEB;text-align:left;white-space:nowrap}
+  th{background:var(--main-soft);font-weight:700;color:var(--main-dark);position:sticky;top:0}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:700;font-size:13px}
+  .pill.ok{background:var(--ok-soft);color:var(--ok)}
+  .pill.bad{background:var(--bad-soft);color:var(--bad)}
+  .pill.wait{background:#EEF1F3;color:var(--sub)}
+  .qrate{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+  .qrate div{background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
+  .qrate b{font-size:18px}
+  @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.qrate{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="eyebrow">FLYING DISC · ULTIMATE</div>
+  <h1>얼티미트 규칙 퀴즈</h1>
+</header>
+
+<!-- 설정 안내 -->
+<main id="view-setup" class="hidden">
+  <div class="card notice">Firebase 설정이 아직 입력되지 않았어요. <b>index.html</b> 위쪽의 <b>firebaseConfig</b>에 내 프로젝트 값을 붙여 넣어 주세요. (README.md 참고)</div>
+</main>
+
+<!-- 학생 로그인 -->
+<main id="view-login" class="hidden">
+  <div class="card stack">
+    <div class="note">학번과 이름을 입력하고 시작하세요. 퀴즈는 <b>딱 한 번만</b> 응시할 수 있어요.<br>10문항 중 <b id="passText">7</b>문항 이상 맞히면 통과!</div>
+    <div>
+      <label for="sid">학번 (5자리)</label>
+      <input id="sid" type="text" inputmode="numeric" maxlength="5" placeholder="예: 10712" autocomplete="off">
+    </div>
+    <div>
+      <label for="sname">이름</label>
+      <input id="sname" type="text" maxlength="20" placeholder="예: 홍길동" autocomplete="off">
+    </div>
+    <div class="err" id="loginErr" role="alert"></div>
+    <button class="btn" id="btnStart" type="button">퀴즈 시작하기</button>
+  </div>
+  <div style="text-align:center;margin-top:18px"><button class="linkbtn" id="btnGoTeacher" type="button">교사 모드</button></div>
+</main>
+
+<!-- 시작 확인 -->
+<main id="view-confirm" class="hidden">
+  <div class="card stack">
+    <div style="font-size:18px;font-weight:700"><span id="cfWho"></span> 학생, 준비됐나요?</div>
+    <div class="notice">시작하면 응시 기록이 남아서 <b>다시 응시할 수 없어요.</b><br>같은 기기에서 새로고침했을 때는 이어서 풀 수 있어요.</div>
+    <div class="nav">
+      <button class="btn ghost" id="btnCfBack" type="button">돌아가기</button>
+      <button class="btn" id="btnCfGo" type="button">시작!</button>
+    </div>
+    <div class="err" id="cfErr" role="alert"></div>
+  </div>
+</main>
+
+<!-- 퀴즈 -->
+<main id="view-quiz" class="hidden">
+  <div class="card stack">
+    <div class="qmeta"><span id="qWho"></span><span id="qCount"></span></div>
+    <div class="progress"><div id="qBar"></div></div>
+    <div class="qtext" id="qText"></div>
+    <div class="stack" id="qOpts" style="gap:10px"></div>
+    <div class="nav">
+      <button class="btn ghost" id="btnPrev" type="button">이전</button>
+      <button class="btn" id="btnNext" type="button">다음</button>
+      <button class="btn accent hidden" id="btnSubmit" type="button">제출하기</button>
+    </div>
+    <div class="dots" id="qDots"></div>
+    <div class="err" id="qErr" role="alert"></div>
+  </div>
+</main>
+
+<!-- 결과 -->
+<main id="view-result" class="hidden">
+  <div class="card stack" style="text-align:center;align-items:center">
+    <div class="note" id="rWho"></div>
+    <div class="score" id="rScore"></div>
+    <div class="badge" id="rBadge"></div>
+    <div class="note" id="rMsg"></div>
+    <button class="btn ghost" id="btnHome" type="button">처음 화면으로</button>
+  </div>
+</main>
+
+<!-- 교사 로그인 -->
+<main id="view-tlogin" class="hidden">
+  <div class="card stack">
+    <div style="font-size:18px;font-weight:700">교사 모드</div>
+    <div>
+      <label for="tpin">비밀번호 (5자리)</label>
+      <input id="tpin" type="password" inputmode="numeric" maxlength="5" autocomplete="off">
+    </div>
+    <div class="err" id="tErr" role="alert"></div>
+    <div class="nav">
+      <button class="btn ghost" id="btnTBack" type="button">학생 화면</button>
+      <button class="btn" id="btnTLogin" type="button">들어가기</button>
+    </div>
+  </div>
+</main>
+
+<!-- 교사 대시보드 -->
+<main id="view-teacher" class="wide hidden">
+  <div class="stack">
+    <div class="toolbar">
+      <select id="fClass" aria-label="반 선택"></select>
+      <select id="fStatus" aria-label="결과 선택">
+        <option value="all">전체 결과</option>
+        <option value="pass">통과</option>
+        <option value="fail">미통과</option>
+        <option value="wait">미제출(응시 중)</option>
+      </select>
+      <button class="btn small ghost" id="btnReload" type="button">새로고침</button>
+      <button class="btn small" id="btnExcel" type="button">엑셀 다운로드</button>
+      <span style="flex:1"></span>
+      <button class="btn small ghost" id="btnLogout" type="button">로그아웃</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="k">응시 시작</div><div class="v" id="sStarted">0</div></div>
+      <div class="stat"><div class="k">제출 완료</div><div class="v" id="sDone">0</div></div>
+      <div class="stat"><div class="k">통과</div><div class="v" id="sPass">0</div></div>
+      <div class="stat"><div class="k">평균 점수</div><div class="v" id="sAvg">-</div></div>
+    </div>
+    <div>
+      <div style="font-weight:700;margin-bottom:8px">문항별 정답률 <span class="note">(선택한 반·제출자 기준)</span></div>
+      <div class="qrate" id="qRate"></div>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>학번</th><th>이름</th><th>반</th><th style="text-align:right">점수</th><th>결과</th><th>제출 시각</th><th>틀린 문항</th><th>관리</th></tr></thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
+    <div class="err" id="dErr" role="alert"></div>
+  </div>
+</main>
+
+<script type="module">
+/* =========================================================
+   ① Firebase 설정 — Firebase 콘솔 > 프로젝트 설정 > 내 앱 에서 복사
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCzAvdCwDukoUpxGh0qA-C1i_JM38fDK44",
+  authDomain: "ultimate-quiz-db0d6.firebaseapp.com",
+  projectId: "ultimate-quiz-db0d6",
+  storageBucket: "ultimate-quiz-db0d6.firebasestorage.app",
+  messagingSenderId: "371331716852",
+  appId: "1:371331716852:web:05ce61a865f512879db0a1"
+};
+
+/* ② 교사 계정 — Firebase Authentication에 만든 계정과 똑같이
+      (실제 비밀번호 = 5자리 숫자 + PIN_SUFFIX, 예: 12345quiz) */
+const TEACHER_EMAIL = "teacher@ultimate-quiz.app";
+const PIN_SUFFIX = "quiz";
+
+/* ③ 통과 기준 */
+const PASS_SCORE = 7;
+
+/* ④ 문항 (answer = 정답 보기 번호, 0부터 시작) */
+const QUESTIONS = [
+  { id:1, q:"얼티미트 경기에서 한 팀은 몇 명이 경기장에 들어가 경기할까요?",
+    options:["5명","6명","7명","11명"], answer:2 },
+  { id:2, q:"경기를 시작할 때 수비팀이 공격팀 쪽으로 디스크를 멀리 던지는 것을 무엇이라고 할까요?",
+    options:["서브","풀(Pull)","킥오프","점프볼"], answer:1 },
+  { id:3, q:"한 팀이 득점한 뒤, 다음 풀(Pull)은 누가 던질까요?",
+    options:["득점한 팀","실점한 팀","심판","가위바위보에서 이긴 팀"], answer:0 },
+  { id:4, q:"다음 중 득점이 인정되는 경우는?",
+    options:["상대 엔드존 안에서 패스를 잡았을 때","엔드존 라인을 밟고 패스를 잡았을 때","디스크를 들고 엔드존으로 뛰어 들어갔을 때","던진 디스크가 엔드존 바닥에 떨어졌을 때"], answer:0 },
+  { id:5, q:"'피벗(Pivot)'에 대한 설명으로 옳은 것은?",
+    options:["디스크를 가진 선수가 바닥에 고정하는 발","디스크를 가진 선수를 막는 수비","공격권이 상대 팀에게 넘어가는 것","빈 공간으로 뛰어 들어가 패스를 받는 선수"], answer:0 },
+  { id:6, q:"디스크를 가진 선수는 마커가 \"스톨링\" 카운트로 몇을 외치기 전에 던져야 할까요?",
+    options:["5","8","10","15"], answer:2 },
+  { id:7, q:"마커(디스크를 가진 선수를 막는 수비)는 디스크를 가진 선수와 최소 얼마나 떨어져야 할까요?",
+    options:["50cm","1m","2m","3m"], answer:1 },
+  { id:8, q:"다음 중 턴오버(공수 교대)가 되지 않는 경우는?",
+    options:["패스한 디스크가 땅에 떨어졌다","수비가 날아가는 디스크를 쳐냈다","스톨링 10을 외치기 전에 패스를 성공했다","자기가 던진 디스크를 스스로 다시 잡았다"], answer:2 },
+  { id:9, q:"다음 중 규칙에 맞는 수비는?",
+    options:["공격수 1명에게 수비 1명만 붙는다","두 명이 한 공격수를 함께 막는다","상대가 손에 들고 있는 디스크를 쳐낸다","몸을 붙여 상대가 움직이지 못하게 한다"], answer:0 },
+  { id:10, q:"심판 없이 선수 스스로 판정하고, 승리보다 존중과 공정을 먼저 생각하는 얼티미트의 정신은?",
+    options:["스피릿 오브 더 게임","페어플레이 카드","매너 포인트","스포츠 히어로"], answer:0 }
+];
+
+/* ========================================================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, getDocs, deleteDoc, collection, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const $ = (s) => document.querySelector(s);
+const VIEWS = ["setup","login","confirm","quiz","result","tlogin","teacher"];
+function show(v){ VIEWS.forEach(n => $("#view-"+n).classList.toggle("hidden", n !== v)); window.scrollTo(0,0); }
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function fmtTime(ts){ if(!ts || !ts.toDate) return ""; const d=ts.toDate(); const p=n=>String(n).padStart(2,"0"); return `${d.getMonth()+1}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function classOf(sid){ return `${sid[0]}학년 ${Number(sid.slice(1,3))}반`; }
+
+$("#passText").textContent = PASS_SCORE;
+
+if (firebaseConfig.apiKey.startsWith("여기에")) { show("setup"); throw new Error("Firebase 설정 필요"); }
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+/* ---------- 진행 상황(같은 기기 새로고침 대비) ---------- */
+const PKEY = (sid) => "ultimateQuiz_" + sid;
+function loadProgress(sid){ try{ return JSON.parse(localStorage.getItem(PKEY(sid))); }catch(e){ return null; } }
+function saveProgress(p){ try{ localStorage.setItem(PKEY(p.sid), JSON.stringify(p)); }catch(e){} }
+function newProgress(sid, name){
+  const order = shuffle(QUESTIONS.map((_,i)=>i));
+  const opt = {}; QUESTIONS.forEach(q => opt[q.id] = shuffle(q.options.map((_,i)=>i)));
+  return { sid, name, order, opt, answers:{}, cur:0, submitted:false };
+}
+
+/* ---------- 학생 로그인 ---------- */
+let P = null;          // 현재 진행 상황
+let pending = null;    // 시작 확인 대기 중인 학생
+
+$("#sid").addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g,""); });
+$("#sname").addEventListener("keydown", e => { if(e.key === "Enter") studentLogin(); });
+$("#btnStart").addEventListener("click", studentLogin);
+
+async function studentLogin(){
+  const sid = $("#sid").value.trim(), name = $("#sname").value.trim().replace(/\s+/g," ");
+  const err = $("#loginErr"); err.textContent = "";
+  if(!/^\d{5}$/.test(sid)) { err.textContent = "학번은 숫자 5자리로 입력하세요."; return; }
+  if(!name) { err.textContent = "이름을 입력하세요."; return; }
+  const btn = $("#btnStart"); btn.disabled = true;
+  try{
+    const snap = await getDoc(doc(db,"attempts",sid));
+    const local = loadProgress(sid);
+    if(snap.exists()){
+      if(local && local.name === name && snap.data().name === name){
+        P = local;
+        if(P.submitted) showResult(); else startQuiz();
+        return;
+      }
+      err.textContent = "이미 응시한 학번이에요. 다시 응시해야 한다면 선생님께 말씀드리세요.";
+      return;
+    }
+    pending = { sid, name };
+    $("#cfWho").textContent = `${sid} ${name}`;
+    $("#cfErr").textContent = "";
+    show("confirm");
+  }catch(e){
+    err.textContent = "접속 중 문제가 생겼어요. 잠시 후 다시 시도하세요. (" + (e.code || e.message) + ")";
+  }finally{ btn.disabled = false; }
+}
+
+$("#btnCfBack").addEventListener("click", () => { pending = null; show("login"); });
+$("#btnCfGo").addEventListener("click", async () => {
+  const btn = $("#btnCfGo"); btn.disabled = true;
+  try{
+    await setDoc(doc(db,"attempts",pending.sid), { sid:pending.sid, name:pending.name, startedAt:serverTimestamp() });
+    P = newProgress(pending.sid, pending.name); saveProgress(P);
+    startQuiz();
+  }catch(e){
+    $("#cfErr").textContent = e.code === "permission-denied"
+      ? "이미 응시 기록이 있는 학번이에요. 선생님께 말씀드리세요."
+      : "시작하지 못했어요. 다시 시도하세요. (" + (e.code || e.message) + ")";
+  }finally{ btn.disabled = false; }
+});
+
+/* ---------- 퀴즈 ---------- */
+function startQuiz(){ show("quiz"); renderQ(); }
+
+function renderQ(){
+  const n = QUESTIONS.length, i = P.cur, q = QUESTIONS[P.order[i]];
+  $("#qWho").textContent = `${P.sid} ${P.name}`;
+  $("#qCount").textContent = `${i+1} / ${n}`;
+  $("#qBar").style.width = ((i+1)/n*100) + "%";
+  $("#qText").textContent = `${i+1}. ${q.q}`;
+  const box = $("#qOpts"); box.innerHTML = "";
+  P.opt[q.id].forEach((oi, k) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "opt" + (P.answers[q.id] === oi ? " sel" : "");
+    b.setAttribute("aria-pressed", P.answers[q.id] === oi ? "true" : "false");
+    b.innerHTML = `<span class="mark">${k+1}</span><span>${esc(q.options[oi])}</span>`;
+    b.addEventListener("click", () => { P.answers[q.id] = oi; saveProgress(P); renderQ(); });
+    box.appendChild(b);
+  });
+  $("#btnPrev").style.visibility = i === 0 ? "hidden" : "visible";
+  $("#btnNext").classList.toggle("hidden", i === n-1);
+  $("#btnSubmit").classList.toggle("hidden", i !== n-1);
+  const dots = $("#qDots"); dots.innerHTML = "";
+  P.order.forEach((qi, k) => {
+    const d = document.createElement("button");
+    d.type = "button";
+    const done = P.answers[QUESTIONS[qi].id] !== undefined;
+    d.className = "dot" + (k === i ? " cur" : done ? " done" : "");
+    d.textContent = k+1;
+    d.setAttribute("aria-label", `${k+1}번 문제로 이동${done ? " (답함)" : ""}`);
+    d.addEventListener("click", () => { P.cur = k; saveProgress(P); renderQ(); });
+    dots.appendChild(d);
+  });
+  $("#qErr").textContent = "";
+}
+
+$("#btnPrev").addEventListener("click", () => { if(P.cur>0){ P.cur--; saveProgress(P); renderQ(); } });
+$("#btnNext").addEventListener("click", () => { if(P.cur<QUESTIONS.length-1){ P.cur++; saveProgress(P); renderQ(); } });
+
+$("#btnSubmit").addEventListener("click", async () => {
+  const left = P.order.map((qi,k)=>({k, id:QUESTIONS[qi].id})).filter(x => P.answers[x.id] === undefined);
+  if(left.length){
+    if(!confirm(`아직 답하지 않은 문제가 있어요: ${left.map(x=>x.k+1).join(", ")}번\n그래도 제출할까요? (제출 후에는 다시 풀 수 없어요)`)) return;
+  } else if(!confirm("제출할까요? 제출 후에는 다시 풀 수 없어요.")) return;
+
+  const btn = $("#btnSubmit"); btn.disabled = true;
+  const answers = QUESTIONS.map(q => P.answers[q.id] ?? -1);
+  const score = QUESTIONS.reduce((s,q,i) => s + (answers[i] === q.answer ? 1 : 0), 0);
+  try{
+    await setDoc(doc(db,"results",P.sid), {
+      sid:P.sid, name:P.name, score, total:QUESTIONS.length,
+      passed: score >= PASS_SCORE, answers, submittedAt: serverTimestamp()
+    });
+    P.submitted = true; P.score = score; saveProgress(P);
+    showResult();
+  }catch(e){
+    $("#qErr").textContent = e.code === "permission-denied"
+      ? "제출할 수 없어요. 이미 제출했거나 응시 기록이 초기화되었어요. 선생님께 말씀드리세요."
+      : "제출 중 문제가 생겼어요. 인터넷 연결을 확인하고 다시 눌러 주세요. (" + (e.code || e.message) + ")";
+  }finally{ btn.disabled = false; }
+});
+
+function showResult(){
+  const pass = P.score >= PASS_SCORE;
+  $("#rWho").textContent = `${P.sid} ${P.name}`;
+  $("#rScore").textContent = `${P.score} / ${QUESTIONS.length}`;
+  const b = $("#rBadge"); b.textContent = pass ? "통과!" : "미통과"; b.className = "badge " + (pass ? "ok" : "bad");
+  $("#rMsg").textContent = pass
+    ? "축하해요! 얼티미트 규칙을 잘 알고 있네요."
+    : `${PASS_SCORE}문항 이상 맞혀야 통과예요. 포스터를 다시 보며 규칙을 복습해 보세요.`;
+  show("result");
+}
+$("#btnHome").addEventListener("click", () => { P = null; $("#sid").value = ""; $("#sname").value = ""; show("login"); });
+
+/* ---------- 교사 모드 ---------- */
+let RESULTS = {}, ATTEMPTS = {};
+
+$("#btnGoTeacher").addEventListener("click", () => {
+  if(auth.currentUser && auth.currentUser.email === TEACHER_EMAIL){ show("teacher"); loadTeacher(); }
+  else { $("#tpin").value = ""; $("#tErr").textContent = ""; show("tlogin"); }
+});
+$("#btnTBack").addEventListener("click", () => show("login"));
+$("#tpin").addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g,""); });
+$("#tpin").addEventListener("keydown", e => { if(e.key === "Enter") teacherLogin(); });
+$("#btnTLogin").addEventListener("click", teacherLogin);
+
+async function teacherLogin(){
+  const pin = $("#tpin").value.trim(), err = $("#tErr"); err.textContent = "";
+  if(!/^\d{5}$/.test(pin)) { err.textContent = "비밀번호 5자리를 입력하세요."; return; }
+  const btn = $("#btnTLogin"); btn.disabled = true;
+  try{
+    await signInWithEmailAndPassword(auth, TEACHER_EMAIL, pin + PIN_SUFFIX);
+    show("teacher"); loadTeacher();
+  }catch(e){
+    err.textContent = (e.code === "auth/invalid-credential" || e.code === "auth/wrong-password" || e.code === "auth/user-not-found")
+      ? "비밀번호가 맞지 않아요." : "로그인 오류: " + (e.code || e.message);
+  }finally{ btn.disabled = false; }
+}
+
+$("#btnLogout").addEventListener("click", async () => { await signOut(auth); show("login"); });
+$("#btnReload").addEventListener("click", loadTeacher);
+$("#fClass").addEventListener("change", renderTeacher);
+$("#fStatus").addEventListener("change", renderTeacher);
+
+async function loadTeacher(){
+  $("#dErr").textContent = "";
+  try{
+    const [rs, as] = await Promise.all([ getDocs(collection(db,"results")), getDocs(collection(db,"attempts")) ]);
+    RESULTS = {}; ATTEMPTS = {};
+    rs.forEach(d => RESULTS[d.id] = d.data());
+    as.forEach(d => ATTEMPTS[d.id] = d.data());
+    const classes = [...new Set(Object.keys({...ATTEMPTS, ...RESULTS}).map(classOf))].sort((a,b)=>a.localeCompare(b,"ko",{numeric:true}));
+    const sel = $("#fClass"), prev = sel.value;
+    sel.innerHTML = `<option value="all">전체 반</option>` + classes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    if(classes.includes(prev)) sel.value = prev;
+    renderTeacher();
+  }catch(e){
+    $("#dErr").textContent = "불러오기 실패: " + (e.code || e.message) + " (보안 규칙의 교사 이메일을 확인하세요)";
+  }
+}
+
+function buildRows(){
+  const fc = $("#fClass").value, fs = $("#fStatus").value;
+  const sids = [...new Set([...Object.keys(ATTEMPTS), ...Object.keys(RESULTS)])].sort();
+  return sids.map(sid => {
+    const r = RESULTS[sid], a = ATTEMPTS[sid];
+    const status = r ? (r.passed ? "pass" : "fail") : "wait";
+    const wrong = r ? QUESTIONS.map((q,i) => (r.answers[i] === q.answer ? null : q.id)).filter(Boolean) : [];
+    return { sid, name:(r||a).name, cls:classOf(sid), r, status, wrong,
+             time: r ? fmtTime(r.submittedAt) : fmtTime(a && a.startedAt) };
+  }).filter(x => (fc === "all" || x.cls === fc) && (fs === "all" || x.status === fs));
+}
+
+function renderTeacher(){
+  const rows = buildRows();
+  const done = rows.filter(x => x.r);
+  $("#sStarted").textContent = rows.length;
+  $("#sDone").textContent = done.length;
+  $("#sPass").textContent = done.filter(x => x.r.passed).length;
+  $("#sAvg").textContent = done.length ? (done.reduce((s,x)=>s+x.r.score,0)/done.length).toFixed(1) : "-";
+
+  $("#qRate").innerHTML = QUESTIONS.map((q,i) => {
+    const c = done.filter(x => x.r.answers[i] === q.answer).length;
+    const pct = done.length ? Math.round(c/done.length*100) : 0;
+    return `<div>${q.id}번 <b>${done.length ? pct + "%" : "-"}</b></div>`;
+  }).join("");
+
+  const label = { pass:'<span class="pill ok">통과</span>', fail:'<span class="pill bad">미통과</span>', wait:'<span class="pill wait">미제출</span>' };
+  $("#tBody").innerHTML = rows.length ? rows.map(x => `
+    <tr>
+      <td>${esc(x.sid)}</td><td>${esc(x.name)}</td><td>${esc(x.cls)}</td>
+      <td class="num">${x.r ? x.r.score + " / " + x.r.total : "-"}</td>
+      <td>${label[x.status]}</td>
+      <td>${esc(x.time)}${x.r ? "" : " 시작"}</td>
+      <td>${x.r ? (x.wrong.length ? x.wrong.join(", ") : "없음") : "-"}</td>
+      <td><button class="btn small danger" type="button" data-reset="${esc(x.sid)}">재응시 허용</button></td>
+    </tr>`).join("")
+    : `<tr><td colspan="8" style="text-align:center;color:var(--sub);padding:24px">아직 기록이 없어요.</td></tr>`;
+
+  document.querySelectorAll("[data-reset]").forEach(b => b.addEventListener("click", () => resetStudent(b.dataset.reset)));
+}
+
+async function resetStudent(sid){
+  const who = (RESULTS[sid] || ATTEMPTS[sid] || {}).name || "";
+  if(!confirm(`${sid} ${who} 학생의 응시 기록과 결과를 삭제하고 다시 응시할 수 있게 할까요?`)) return;
+  try{
+    await Promise.all([ deleteDoc(doc(db,"results",sid)), deleteDoc(doc(db,"attempts",sid)) ]);
+    await loadTeacher();
+  }catch(e){ $("#dErr").textContent = "삭제 실패: " + (e.code || e.message); }
+}
+
+$("#btnExcel").addEventListener("click", () => {
+  if(typeof XLSX === "undefined"){ alert("엑셀 도구를 불러오지 못했어요. 새로고침 후 다시 시도하세요."); return; }
+  const rows = buildRows();
+  const statusText = { pass:"통과", fail:"미통과", wait:"미제출" };
+  const data = rows.map(x => {
+    const o = { "학번":x.sid, "이름":x.name, "학년":Number(x.sid[0]), "반":Number(x.sid.slice(1,3)), "번호":Number(x.sid.slice(3)),
+                "점수":x.r ? x.r.score : "", "결과":statusText[x.status], "제출 시각":x.r ? x.time : "" };
+    QUESTIONS.forEach((q,i) => { o[`${q.id}번`] = x.r ? (x.r.answers[i] === q.answer ? "O" : "X") : ""; });
+    return o;
+  });
+  const done = rows.filter(x => x.r);
+  const rate = QUESTIONS.map((q,i) => {
+    const c = done.filter(x => x.r.answers[i] === q.answer).length;
+    return { "문항":`${q.id}번`, "문제":q.q, "정답자 수":c, "제출자 수":done.length, "정답률(%)":done.length ? Math.round(c/done.length*100) : "" };
+  });
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.json_to_sheet(data.length ? data : [{"학번":"기록 없음"}]);
+  ws1["!cols"] = [{wch:8},{wch:10},{wch:5},{wch:5},{wch:5},{wch:6},{wch:8},{wch:12}, ...QUESTIONS.map(()=>({wch:5}))];
+  XLSX.utils.book_append_sheet(wb, ws1, "결과");
+  const ws2 = XLSX.utils.json_to_sheet(rate);
+  ws2["!cols"] = [{wch:6},{wch:60},{wch:10},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws2, "문항별 정답률");
+  const fc = $("#fClass").value === "all" ? "전체" : $("#fClass").value.replace(/\s/g,"");
+  const d = new Date(), ymd = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  XLSX.writeFile(wb, `얼티미트퀴즈_${fc}_${ymd}.xlsx`);
+});
+
+/* ---------- 시작 ---------- */
+show("login");
+onAuthStateChanged(auth, () => {});
+</script>
+</body>
+</html>
